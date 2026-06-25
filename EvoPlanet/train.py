@@ -58,8 +58,13 @@ def train_detector(detector, autoencoder, dataloader, num_epochs=5, device='cpu'
         
         for (batch_x, batch_meta), batch_y in dataloader:
             batch_x = batch_x.to(device)
-            batch_meta = batch_meta.to(device)
             batch_y = batch_y.to(device)
+            
+            # Apply Modality Dropout (~20% chance to drop features dynamically per batch)
+            mask = torch.rand_like(batch_meta[:, :8]) > 0.2
+            batch_meta[:, :8] = batch_meta[:, :8] * mask # Zero out features
+            batch_meta[:, 8:] = batch_meta[:, 8:] * mask # Zero out their flags
+            batch_meta = batch_meta.to(device)
             
             optimizer.zero_grad()
             

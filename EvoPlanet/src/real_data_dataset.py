@@ -37,13 +37,15 @@ class RealKeplerDataset(Dataset):
         if len(self.data) > 0:
             self.data = np.concatenate(self.data, axis=0)
             self.data = torch.tensor(self.data, dtype=torch.float32) # (N, 5, seq_len)
-            self.metadata = torch.tensor(np.array(self.metadata), dtype=torch.float32) # (N, 8)
+            base_meta = torch.tensor(np.array(self.metadata), dtype=torch.float32) # (N, 8)
+            flags = torch.ones_like(base_meta) # (N, 8) all present initially
+            self.metadata = torch.cat([base_meta, flags], dim=1) # (N, 16)
             self.labels = torch.tensor(self.labels, dtype=torch.long)
             print(f"Dataset ready: {len(self)} samples with shape {self.data.shape[1:]} and meta {self.metadata.shape[1:]}")
         else:
             print("Warning: No data loaded!")
             self.data = torch.zeros((0, 5, seq_len), dtype=torch.float32)
-            self.metadata = torch.zeros((0, 8), dtype=torch.float32)
+            self.metadata = torch.zeros((0, 16), dtype=torch.float32)
             self.labels = torch.zeros(0, dtype=torch.long)
             
     def __len__(self):

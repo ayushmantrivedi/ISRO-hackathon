@@ -74,7 +74,7 @@ class TransformerDetector(nn.Module):
         
         # Metadata MLP for Global Context
         self.meta_mlp = nn.Sequential(
-            nn.Linear(8, 32), # 8 inputs: 4 static (Radius, Mass, Teff, logg) + 4 derived BLS (Period, Duration, Depth, Power)
+            nn.Linear(16, 32), # 16 inputs: 8 values + 8 missingness indicator flags
             nn.ReLU(),
             nn.Linear(32, 32),
             nn.ReLU()
@@ -97,7 +97,7 @@ class TransformerDetector(nn.Module):
         )
         
         # Physics Consistency Layer
-        self.physics_inspector = EvoPhysicsInspector(metadata_dim=8, bottleneck_dim=128)
+        self.physics_inspector = EvoPhysicsInspector(metadata_dim=16, bottleneck_dim=128)
         
     def forward(self, raw_seq, ae_features, metadata=None, return_attention=False):
         """

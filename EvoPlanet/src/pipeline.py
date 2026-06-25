@@ -36,7 +36,12 @@ class EvoPlanetPipeline:
         """
         # 1. Prepare Tensors
         x = torch.tensor(multi_channel_array, dtype=torch.float32).unsqueeze(0) # (1, 5, seq_len)
-        meta = torch.tensor(metadata_array, dtype=torch.float32).unsqueeze(0) # (1, 8)
+        meta = torch.tensor(metadata_array, dtype=torch.float32).unsqueeze(0) # (1, 8) or (1, 16)
+        
+        # Convert to 16-dim (Indicator Masking) if it's 8-dim
+        if meta.shape[-1] == 8:
+            flags = torch.ones_like(meta)
+            meta = torch.cat([meta, flags], dim=-1)
         
         # Ensure we are in eval mode (MC-Dropout can sometimes alter this state)
         self.autoencoder.eval()

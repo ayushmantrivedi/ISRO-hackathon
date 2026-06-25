@@ -16,7 +16,7 @@ class EvoPhysicsInspector(nn.Module):
           1.0 = Perfectly obeys physics.
           0.0 = Physically impossible (e.g., planet too big for star, duration > period)
     """
-    def __init__(self, metadata_dim=8, bottleneck_dim=128, hidden_dim=64):
+    def __init__(self, metadata_dim=16, bottleneck_dim=128, hidden_dim=64):
         super().__init__()
         
         # We fuse the metadata and bottleneck features
