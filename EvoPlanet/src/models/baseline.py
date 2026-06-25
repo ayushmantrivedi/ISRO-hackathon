@@ -57,6 +57,8 @@ class MLBaseline:
         """
         features = []
         for seq in sequences:
+            if not np.isfinite(seq).all():
+                seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
             f = [
                 np.mean(seq),
                 np.std(seq),

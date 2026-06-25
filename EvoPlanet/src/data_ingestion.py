@@ -58,11 +58,11 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
     # Fill missing values with median for centroids/bkg before returning
     def safe_extract(column_name):
         arr = getattr(lc, column_name).value
-        # Replace NaNs with median
-        if np.isnan(arr).any():
+        # Replace NaNs/Infs with median
+        if not np.isfinite(arr).all():
             median_val = np.nanmedian(arr)
             if np.isnan(median_val): median_val = 0.0
-            arr = np.nan_to_num(arr, nan=median_val)
+            arr = np.nan_to_num(arr, nan=median_val, posinf=median_val, neginf=median_val)
         return arr
 
     flux = safe_extract('flux')
@@ -84,7 +84,7 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
         depth = float(bls.depth_at_max_power.value)
         power = float(bls.max_power.value)
         bls_features = [period, duration, depth, power]
-        bls_features = [0.0 if np.isnan(f) else f for f in bls_features]
+        bls_features = [0.0 if not np.isfinite(f) else f for f in bls_features]
     except Exception as e:
         print(f"BLS failed: {e}. Using fallback values.")
         bls_features = [1.0, 0.1, 0.001, 10.0]
