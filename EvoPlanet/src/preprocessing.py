@@ -8,9 +8,13 @@ def preprocess_multichannel_data(mc_data, flatten_window_length=101, polyorder=3
     time = mc_data['time']
     flux = np.array(mc_data['flux'], dtype=np.float64)
     
+    import warnings
+    
     # Sanitize NaNs/Infs in flux before filtering
     if not np.isfinite(flux).all():
-        med_val = np.nanmedian(flux)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            med_val = np.nanmedian(flux)
         if np.isnan(med_val): 
             med_val = 0.0
         flux = np.nan_to_num(flux, nan=med_val, posinf=med_val, neginf=med_val)
@@ -37,13 +41,16 @@ def preprocess_multichannel_data(mc_data, flatten_window_length=101, polyorder=3
 
     # 2. Standardization function
     def standardize(arr):
+        import warnings
         arr = np.array(arr, dtype=np.float64)
         if not np.isfinite(arr).all():
-            med = np.nanmedian(arr)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                med = np.nanmedian(arr)
             if np.isnan(med): med = 0.0
             arr = np.nan_to_num(arr, nan=med, posinf=med, neginf=med)
         std = np.std(arr)
-        if std == 0: std = 1e-8
+        if std == 0 or not np.isfinite(std): std = 1e-8
         return (arr - np.mean(arr)) / std
 
     # Standardize channels

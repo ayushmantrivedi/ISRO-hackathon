@@ -42,7 +42,11 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
     Extracts: Flux, Centroid X, Centroid Y, Background, Quality Flags.
     """
     safe_print(f"Searching for {target_id} (Quarter {quarter})...")
-    search_result = lk.search_lightcurve(target_id, author=author, exptime=exptime, quarter=quarter)
+    try:
+        search_result = lk.search_lightcurve(target_id, author=author, exptime=exptime, quarter=quarter)
+    except Exception as e:
+        safe_print(f"MAST API Search failed for {target_id}: {e}")
+        return None
     
     if len(search_result) == 0:
         safe_print(f"No data found for {target_id} in Quarter {quarter}.")
@@ -52,7 +56,11 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
         os.makedirs(download_dir)
         
     safe_print(f"Downloading to {download_dir}...")
-    lc_collection = search_result.download_all(download_dir=download_dir)
+    try:
+        lc_collection = search_result.download_all(download_dir=download_dir)
+    except Exception as e:
+        safe_print(f"MAST API Download failed for {target_id}: {e}")
+        return None
     
     if lc_collection is None or len(lc_collection) == 0:
         return None

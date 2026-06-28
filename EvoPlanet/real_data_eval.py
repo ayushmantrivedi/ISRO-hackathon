@@ -1,9 +1,10 @@
 import torch
 import numpy as np
-from src.data_ingestion import download_kepler_data
-from src.preprocessing import preprocess_lightcurve, extract_sequences
+from src.data_ingestion import download_multi_channel_data
+from src.preprocessing import preprocess_multichannel_data, extract_multichannel_sequences
 from src.pipeline import EvoPlanetPipeline
 from sklearn.metrics import roc_curve, auc, precision_recall_curve
+import os
 
 def evaluate_on_real_data():
     """
@@ -14,33 +15,51 @@ def evaluate_on_real_data():
     
     # 1. Fetch Positive Sample (Kepler-10)
     print("Downloading Positive Sample (Kepler-10)...")
-    lcs_pos = download_kepler_data("Kepler-10", quarter=3, download_dir="data/raw")
-    if lcs_pos is None or len(lcs_pos) == 0:
+    mc_data = download_multi_channel_data("Kepler-10", quarter=3, download_dir="data/raw")
+    if mc_data is None:
         print("Failed to download positive data.")
         return
-    lc_pos = lcs_pos[0]
-    
-    # 2. Fetch Negative Sample (Known Eclipsing Binary: KIC 11446443 or similar, or just a quiet star)
-    print("Downloading Negative Sample (Quiet Star / False Positive)...")
-    # KIC 8462852 (Tabby's Star) or just Kepler-4 (we just need another star, or we can use the same star's quiet periods)
-    # Let's use a random KIC that doesn't have a known short period planet.
-    # For speed in hackathon evaluation, we'll extract sequences from Kepler-10 and label the sequences containing the dip as 0 (Candidate) and others as 1 (Noise).
-    
+        
     # Preprocess
-    lc_pos_flat = preprocess_lightcurve(lc_pos)
+    stacked_channels = preprocess_multichannel_data(mc_data)
     
     # Extract fixed-length sequences
-    sequences = extract_sequences(lc_pos_flat, window_size=200, step_size=50)
+    sequences = extract_multichannel_sequences(stacked_channels, window_size=200, step_size=50)
     print(f"Extracted {len(sequences)} sequences from Kepler-10 Q3.")
+    
+    if len(sequences) == 0:
+        print("No sequences extracted. Exiting.")
+        return
+        
+    metadata = mc_data['metadata']
     
     # Let's load the model
     device = torch.device("cpu")
     pipeline = EvoPlanetPipeline(seq_len=200)
+    
+    # We must handle DataParallel weights if they were saved with nn.DataParallel
+    def load_weights(model, path):
+        state_dict = torch.load(path, map_location=device)
+        # Check if saved from DataParallel
+        if list(state_dict.keys())[0].startswith('module.'):
+            # Create a new state dict without 'module.' prefix
+            from collections import OrderedDict
+            new_state_dict = OrderedDict()
+            for k, v in state_dict.items():
+                name = k[7:] # remove `module.`
+                new_state_dict[name] = v
+            model.load_state_dict(new_state_dict)
+        else:
+            model.load_state_dict(state_dict)
+            
     try:
-        pipeline.autoencoder.load_state_dict(torch.load("weights/autoencoder.pt", map_location=device))
-        pipeline.detector.load_state_dict(torch.load("weights/detector.pt", map_location=device))
-    except FileNotFoundError:
-        print("Weights not found! Ensure train.py has completed.")
+        if os.path.exists("weights/autoencoder.pt"):
+            load_weights(pipeline.autoencoder, "weights/autoencoder.pt")
+            load_weights(pipeline.detector, "weights/detector.pt")
+        else:
+            print("Warning: Weights not found! Running with untrained initialization.")
+    except Exception as e:
+        print(f"Error loading weights: {e}")
         return
         
     pipeline.autoencoder.to(device)
@@ -49,12 +68,8 @@ def evaluate_on_real_data():
     print("Running Inference on Real Data sequences...")
     results = []
     
-    # To properly evaluate TPR and FPR, we'd normally have ground truth labels for every 200-step window.
-    # Since we are just scanning a real lightcurve, let's treat this as a signal discovery scan.
-    # We will compute the scores for all windows and see if the top ranked windows align with the transit period (0.837 days).
-    
     for idx, seq in enumerate(sequences):
-        res = pipeline.process_sequence(seq)
+        res = pipeline.process_sequence(seq, metadata)
         results.append({
             'index': idx,
             'prob': res['candidate_probability'],
@@ -67,7 +82,7 @@ def evaluate_on_real_data():
     
     print("\n--- Real Data Validation Results (Kepler-10) ---")
     print("Top 5 Detected Candidate Windows (Ranked by EvoRank):")
-    for i in range(5):
+    for i in range(min(5, len(results))):
         r = results[i]
         print(f"Window {r['index']} | Prob: {r['prob']:.4f} | Unc: {r['unc']:.6f} | Rank: {r['rank']:.4f}")
         

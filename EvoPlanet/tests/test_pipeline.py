@@ -44,7 +44,7 @@ def test_autoencoder_architecture():
 
 def test_detector_architectures():
     x_raw = torch.randn(2, 5, 200) # 5 channels
-    metadata = torch.randn(2, 8) # 8 metadata dims
+    metadata = torch.randn(2, 16) # 16 metadata dims (8 + 8 flags)
     ae_features = {
         'l1': torch.randn(2, 16, 100),
         'l2': torch.randn(2, 32, 50),
@@ -66,7 +66,10 @@ def test_detector_architectures():
     logits_concat = detector_concat(x_raw, ae_features, metadata=metadata)
     assert logits_concat.shape == (2, 2)
 
-def test_evonet_environment():
+from unittest.mock import patch
+
+@patch('src.evorank.optimizer.get_real_dataloaders', return_value=(None, None))
+def test_evonet_environment(mock_dataloaders):
     env = EvoNetEnvironment(proxy_epochs=0) # No actual training needed for the test
     
     # Test interpreting genome

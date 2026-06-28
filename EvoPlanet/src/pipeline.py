@@ -42,6 +42,11 @@ class EvoPlanetPipeline:
         if meta.shape[-1] == 8:
             flags = torch.ones_like(meta)
             meta = torch.cat([meta, flags], dim=-1)
+            
+        # Move inputs to the same device as the model
+        device = next(self.detector.parameters()).device
+        x = x.to(device)
+        meta = meta.to(device)
         
         # Ensure we are in eval mode (MC-Dropout can sometimes alter this state)
         self.autoencoder.eval()

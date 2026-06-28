@@ -107,6 +107,11 @@ def main():
     autoencoder = TransitAutoencoder(seq_len=200)
     detector = TransformerDetector(seq_len=200)
     
+    if torch.cuda.device_count() > 1:
+        print(f"Let's use {torch.cuda.device_count()} GPUs!")
+        autoencoder = nn.DataParallel(autoencoder)
+        detector = nn.DataParallel(detector)
+    
     # 3. Train Models
     print("\n--- Training Autoencoder ---")
     autoencoder = train_autoencoder(autoencoder, train_loader, num_epochs=10, device=device)
