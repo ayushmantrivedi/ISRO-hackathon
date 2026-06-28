@@ -42,24 +42,41 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
     Extracts: Flux, Centroid X, Centroid Y, Background, Quality Flags.
     """
     safe_print(f"Searching for {target_id} (Quarter {quarter})...")
-    try:
-        search_result = lk.search_lightcurve(target_id, author=author, exptime=exptime, quarter=quarter)
-    except Exception as e:
-        safe_print(f"MAST API Search failed for {target_id}: {e}")
-        return None
     
-    if len(search_result) == 0:
-        safe_print(f"No data found for {target_id} in Quarter {quarter}.")
+    # Retry logic for MAST API Search
+    max_retries = 3
+    search_result = None
+    for attempt in range(max_retries):
+        try:
+            search_result = lk.search_lightcurve(target_id, author=author, exptime=exptime, quarter=quarter)
+            break
+        except Exception as e:
+            safe_print(f"MAST API Search failed for {target_id} (Attempt {attempt+1}/{max_retries}): {e}")
+            import time
+            time.sleep(2)
+            
+    if search_result is None or len(search_result) == 0:
+        safe_print(f"No data found for {target_id} in Quarter {quarter} after {max_retries} attempts.")
         return None
         
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
         
     safe_print(f"Downloading to {download_dir}...")
-    try:
-        lc_collection = search_result.download_all(download_dir=download_dir)
-    except Exception as e:
-        safe_print(f"MAST API Download failed for {target_id}: {e}")
+    
+    # Retry logic for MAST API Download
+    lc_collection = None
+    for attempt in range(max_retries):
+        try:
+            lc_collection = search_result.download_all(download_dir=download_dir)
+            break
+        except Exception as e:
+            safe_print(f"MAST API Download failed for {target_id} (Attempt {attempt+1}/{max_retries}): {e}")
+            import time
+            time.sleep(2)
+            
+    if lc_collection is None or len(lc_collection) == 0:
+        safe_print(f"Failed to download data for {target_id} after {max_retries} attempts.")
         return None
     
     if lc_collection is None or len(lc_collection) == 0:
