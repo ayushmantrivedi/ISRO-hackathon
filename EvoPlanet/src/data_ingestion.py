@@ -2,6 +2,13 @@ import lightkurve as lk
 import numpy as np
 import pandas as pd
 import os
+import sys
+
+def safe_print(msg):
+    try:
+        print(msg)
+    except Exception:
+        pass
 
 # Curated list of known planets (1) and false positives (0)
 # We use only a few to keep data lightweight.
@@ -34,17 +41,17 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
     Downloads Kepler light curve data and extracts multi-channel features.
     Extracts: Flux, Centroid X, Centroid Y, Background, Quality Flags.
     """
-    print(f"Searching for {target_id} (Quarter {quarter})...")
+    safe_print(f"Searching for {target_id} (Quarter {quarter})...")
     search_result = lk.search_lightcurve(target_id, author=author, exptime=exptime, quarter=quarter)
     
     if len(search_result) == 0:
-        print(f"No data found for {target_id} in Quarter {quarter}.")
+        safe_print(f"No data found for {target_id} in Quarter {quarter}.")
         return None
         
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
         
-    print(f"Downloading to {download_dir}...")
+    safe_print(f"Downloading to {download_dir}...")
     lc_collection = search_result.download_all(download_dir=download_dir)
     
     if lc_collection is None or len(lc_collection) == 0:
@@ -75,7 +82,7 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
     meta = list(TARGET_METADATA.get(target_id, [1.0, 1.0, 5778.0, 4.44])) # Default to Solar if missing
     
     # Compute BLS derived physics
-    print("Computing BLS Periodogram...")
+    safe_print("Computing BLS Periodogram...")
     try:
         clean_lc = lc.remove_nans().remove_outliers()
         bls = clean_lc.to_periodogram(method='bls')
@@ -86,7 +93,7 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
         bls_features = [period, duration, depth, power]
         bls_features = [0.0 if not np.isfinite(f) else f for f in bls_features]
     except Exception as e:
-        print(f"BLS failed: {e}. Using fallback values.")
+        safe_print(f"BLS failed: {e}. Using fallback values.")
         bls_features = [1.0, 0.1, 0.001, 10.0]
         
     # Append dynamic features to static metadata
