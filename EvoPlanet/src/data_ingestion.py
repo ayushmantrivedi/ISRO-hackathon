@@ -10,6 +10,16 @@ def safe_print(msg):
     except Exception:
         pass
 
+import concurrent.futures
+
+def run_with_timeout(func, timeout_duration=15, *args, **kwargs):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(func, *args, **kwargs)
+        try:
+            return future.result(timeout=timeout_duration)
+        except concurrent.futures.TimeoutError:
+            raise TimeoutError(f"Operation timed out after {timeout_duration} seconds.")
+
 # Curated list of known planets (1) and false positives (0)
 # We use only a few to keep data lightweight.
 CURATED_TARGETS = {
@@ -48,7 +58,7 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
     search_result = None
     for attempt in range(max_retries):
         try:
-            search_result = lk.search_lightcurve(target_id, author=author, exptime=exptime, quarter=quarter)
+            search_result = run_with_timeout(lk.search_lightcurve, 15, target_id, author=author, exptime=exptime, quarter=quarter)
             break
         except Exception as e:
             safe_print(f"MAST API Search failed for {target_id} (Attempt {attempt+1}/{max_retries}): {e}")
@@ -68,7 +78,7 @@ def download_multi_channel_data(target_id, quarter=3, author="Kepler", exptime="
     lc_collection = None
     for attempt in range(max_retries):
         try:
-            lc_collection = search_result.download_all(download_dir=download_dir)
+            lc_collection = run_with_timeout(search_result.download_all, 30, download_dir=download_dir)
             break
         except Exception as e:
             safe_print(f"MAST API Download failed for {target_id} (Attempt {attempt+1}/{max_retries}): {e}")
