@@ -39,7 +39,7 @@ def evaluate_on_real_data():
     
     # We must handle DataParallel weights if they were saved with nn.DataParallel
     def load_weights(model, path):
-        state_dict = torch.load(path, map_location=device)
+        state_dict = torch.load(path, map_location=device, weights_only=True)
         # Check if saved from DataParallel
         if list(state_dict.keys())[0].startswith('module.'):
             # Create a new state dict without 'module.' prefix

@@ -21,8 +21,8 @@ def load_pipeline():
     ae_path = "weights/autoencoder.pt"
     det_path = "weights/detector.pt"
     if os.path.exists(ae_path) and os.path.exists(det_path):
-        pipeline.autoencoder.load_state_dict(torch.load(ae_path, map_location='cpu'))
-        pipeline.detector.load_state_dict(torch.load(det_path, map_location='cpu'))
+        pipeline.autoencoder.load_state_dict(torch.load(ae_path, map_location='cpu', weights_only=True))
+        pipeline.detector.load_state_dict(torch.load(det_path, map_location='cpu', weights_only=True))
     return pipeline
 
 def main():
